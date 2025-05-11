@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你是《追蹤者遊戲W2》的哪位角色？</title>
+<style>
+:root{
+  --bg:#f8f7fa;--fg:#222;--card:#fff;--accent:#5267ff;
+}
+body.dark{
+  --bg:#181a1b;--fg:#eceff1;--card:#242628;
+}
+body{
+  font-family:-apple-system, blinkmacsystemfont,"Segoe UI",roboto,"Noto Sans",sans-serif;
+  background:var(--bg);color:var(--fg);margin:0;padding:1rem;
+  line-height:1.6;transition:.3s background,color;
+}
+.container{max-width:880px;margin:auto}
+h1{text-align:center;margin-top:0}
+.lang-btns, #themeBtn{text-align:center;margin:.5rem}
+button{
+  cursor:pointer;width:100%;padding:.75rem 1rem;margin:.3rem 0;
+  font-size:1rem;border:2px solid var(--accent);
+  background:transparent;color:var(--fg);border-radius:6px;
+  transition:.2s;
+}
+button.selected{background:var(--accent);color:#fff}
+button:hover:not(.selected){background:var(--accent);color:#fff}
+.card{
+  background:var(--card);padding:1rem;border-radius:8px;margin:1rem 0;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+}
+#result img{max-width:180px;border-radius:8px;display:block;margin:auto}
+@media (min-width:600px){
+  .question{display:flex;align-items:flex-start;gap:.75rem}
+  .q-text{flex:0 0 220px}
+  .options{flex:1}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="lang-btns">
+    <button onclick="setLang('zh')">中文</button>
+    <button onclick="setLang('jp')">日本語</button>
+    <button id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+
+  <h1 id="title"></h1>
+  <p id="intro"></p>
+
+  <div id="quiz"></div>
+
+  <div style="text-align:center">
+    <button id="submitBtn" onclick="finishQuiz()"></button>
+  </div>
+
+  <div id="result" class="card"></div>
+</div>
+
+<script>
+// ----------------- 角色圖片 -----------------
+const imageMap={
+  "春本樹":"https://www.tv-tokyo.co.jp/txcms/media/others/0f/8b/c715834df7dff29535881374b5b9.jpg",
+  "林冬雨":"https://www.tv-tokyo.co.jp/txcms/media/others/93/27/f32645864aea02b712fb21f4e8fe.jpg",
+  "パク・ヨルム":"https://www.tv-tokyo.co.jp/txcms/media/others/eb/90/1d66ee5f91778bc124308b10b5ac.jpg",
+  "七瀬ふたば":"https://www.tv-tokyo.co.jp/txcms/media/others/f5/f9/08851009756b96d0281d0febe18b.jpg",
+  "久保結菜":"https://www.tv-tokyo.co.jp/txcms/media/others/59/39/7a4a0fd3c8a8c6ec696bde7fac33.jpg",
+  "高橋美咲":"https://www.tv-tokyo.co.jp/txcms/media/others/ca/59/4c3b603ff7aff30f0042f3325851.jpg",
+  "呂麻美":"https://www.tv-tokyo.co.jp/txcms/media/others/9d/bc/9db57a87743154064829073e6954.jpg"
+};
+
+// ----------------- 角色資料 -----------------
+const characters=[
+  {key:"春本樹", jp:"春本樹", zhDesc:"溫柔體貼、重視情感，是團隊的暖心存在。",
+                             jpDesc:"優しく思いやりがあり、感情を大切にする癒し系リーダー。"},
+  {key:"林冬雨", jp:"林冬雨", zhDesc:"理性沉著，面對壓力依然冷靜分析。",
+                             jpDesc:"理性的で落ち着き、プレッシャー下でも冷静に対処するタイプ。"},
+  {key:"パク・ヨルム", jp:"パク・ヨルム", zhDesc:"外表耀眼但內心細膩，擅長觀察與守護。",
+                             jpDesc:"華やかな外見の裏で繊細に周囲を観察し支える存在。"},
+  {key:"七瀬ふたば", jp:"七瀬ふたば", zhDesc:"熱情活潑，最會炒熱氣氛的開心果。",
+                             jpDesc:"明るくエネルギッシュで、場を盛り上げるムードメーカー。"},
+  {key:"久保結菜", jp:"久保結菜", zhDesc:"追求完美，注重細節與品質。",
+                             jpDesc:"完璧を追い求め、細部とクオリティにこだわる職人肌。"},
+  {key:"高橋美咲", jp:"高橋美咲", zhDesc:"務實穩定，默默支持整個團隊。",
+                             jpDesc:"実直で安定感があり、チームを陰で支える縁の下の力持ち。"},
+  {key:"呂麻美", jp:"呂麻美", zhDesc:"洞察力強、話不多卻一針見血的戰略家。",
+                             jpDesc:"洞察力に優れ、寡黙ながら核心を突くストラテジスト。"}
+];
+
+// ----------------- 題目與選項（含角色對應） -----------------
+const quizData={
+  zh:{
+    title:"你是《追蹤者遊戲W2》的哪位角色？",
+    intro:"請回答以下 10 題，看看你最像哪個角色！",
+    submit:"送出結果",
+    questions:[
+      {q:"你在團隊中最常扮演什麼角色？",
+       opts:["領導決策者","冷靜協調者","情感支持者","觀察思考者"],
+       map:[1,5,0,2]},
+      {q:"遇到壓力時，你會？",
+       opts:["主動解決問題","暫時退一步","找人傾訴","冷靜分析"],
+       map:[1,2,0,6]},
+      {q:"你看待感情的態度是？",
+       opts:["熱情主動","內斂專情","順其自然","觀察後靠近"],
+       map:[3,4,0,2]},
+      {q:"你的工作風格是？",
+       opts:["衝刺效率型","穩健規劃型","情緒驅動型","邏輯整理型"],
+       map:[1,5,3,6]},
+      {q:"遇到衝突時你會？",
+       opts:["直接溝通","沉默觀察","請第三方協助","待氣氛緩和再處理"],
+       map:[1,2,5,0]},
+      {q:"你對社交的態度是？",
+       opts:["樂於分享","選擇性開放","安靜低調","熱愛人群"],
+       map:[3,2,6,3]},
+      {q:"朋友失戀，你會？",
+       opts:["立刻約聊","靜靜陪伴","理性建議","幫找新對象"],
+       map:[0,5,6,3]},
+      {q:"你最在意的價值是？",
+       opts:["忠誠與信賴","自我實現","人際和諧","穩定與秩序"],
+       map:[0,4,3,5]},
+      {q:"若你是作品主角，你會是？",
+       opts:["獨當一面的英雄","情感細膩中心人物","冷靜推進者","幕後智囊"],
+       map:[1,0,2,6]},
+      {q:"面對新環境，你的反應是？",
+       opts:["主動影響環境","觀察後加入","先融入後展現","保持距離"],
+       map:[3,2,0,4]}
+    ]
+  },
+  jp:{
+    title:"『チェイサーゲームW2』のどのキャラクター？",
+    intro:"以下の10問に答えて、あなたに最も近いキャラクターを見つけよう！",
+    submit:"結果を見る",
+    questions:[
+      {q:"チームで最も多い役割は？",
+       opts:["リーダー","冷静な調整役","感情サポーター","観察・分析役"],
+       map:[1,5,0,2]},
+      {q:"プレッシャー時の行動は？",
+       opts:["即解決に動く","一歩引く","誰かに相談","冷静に分析"],
+       map:[1,2,0,6]},
+      {q:"恋愛へのスタンスは？",
+       opts:["情熱的にアタック","内に秘めた一途さ","自然体で任せる","観察して近づく"],
+       map:[3,4,0,2]},
+      {q:"仕事スタイルは？",
+       opts:["スプリント型","堅実計画型","感情ドリブン","ロジカル整理型"],
+       map:[1,5,3,6]},
+      {q:"衝突時の対応は？",
+       opts:["直接対話で解決","沈黙して観察","第三者を頼る","落ち着いてから処理"],
+       map:[1,2,5,0]},
+      {q:"社交への姿勢は？",
+       opts:["シェア好き","選択的に公開","静かに控えめ","人との交流が好き"],
+       map:[3,2,6,3]},
+      {q:"友達が失恋したら？",
+       opts:["すぐ呼び出す","そっと寄り添う","理性的アドバイス","新しい相手を探す"],
+       map:[0,5,6,3]},
+      {q:"最も大切な価値観は？",
+       opts:["忠誠と信頼","自己実現","人間関係の調和","安定と秩序"],
+       map:[0,4,3,5]},
+      {q:"主人公ならどのタイプ？",
+       opts:["責任を背負うヒーロー","繊細な中心人物","冷静に推進する者","裏方ブレーン"],
+       map:[1,0,2,6]},
+      {q:"新環境での反応は？",
+       opts:["積極的に影響する","観察して参加","まず溶け込む","距離を保つ"],
+       map:[3,2,0,4]}
+    ]
+  }
+};
+
+// ----------------- 狀態 -----------------
+let currentLang="zh";
+let answers=Array(10).fill(null); // 每題紀錄角色index
+const scoreArr=()=>Array(characters.length).fill(0);
+
+// ----------------- UI 生成 -----------------
+function setLang(l){
+  currentLang=l;
+  const d=quizData[l];
+  document.documentElement.lang=l==="jp"?"ja":"zh-Hant";
+  _("title").textContent=d.title;
+  _("intro").textContent=d.intro;
+  _("submitBtn").textContent=d.submit;
+  renderQuiz();
+  _("result").innerHTML="";
+}
+function renderQuiz(){
+  const wrap=_("quiz");wrap.innerHTML="";
+  answers.fill(null);
+  quizData[currentLang].questions.forEach((item,qi)=>{
+    const card=div("card question");
+    const qText=div("q-text");
+    qText.innerHTML=`<strong>Q${qi+1}</strong>　${item.q}`;
+    const opts=div("options");
+    item.opts.forEach((t,oi)=>{
+      const btn=btnEl(t);
+      btn.onclick=()=>{
+        // 取消之前選取
+        opts.querySelectorAll("button").forEach(b=>b.classList.remove("selected"));
+        btn.classList.add("selected");
+        answers[qi]=item.map[oi]; // 記錄角色 index
+      };
+      opts.appendChild(btn);
+    });
+    card.appendChild(qText);card.appendChild(opts);wrap.appendChild(card);
+  });
+}
+function finishQuiz(){
+  if(answers.includes(null)){
+    alert(currentLang==="jp"?"未回答の問題があります。":"還有題目尚未作答喔！");
+    return;
+  }
+  const scores=scoreArr();
+  answers.forEach(idx=>scores[idx]++);
+  const max=Math.max(...scores);
+  const cIdx=scores.indexOf(max);
+  const char=characters[cIdx];
+  // 顯示結果
+  const name=currentLang==="jp"?char.jp:char.key;
+  const desc=currentLang==="jp"?char.jpDesc:char.zhDesc;
+  _("result").innerHTML=`
+    <h2>${name}</h2>
+    <img src="${imageMap[char.key]}" alt="${name}">
+    <p>${desc}</p>
+  `;
+  window.scrollTo({top:_("result").offsetTop-20,behavior:"smooth"});
+}
+
+// ----------------- 深色模式 -----------------
+function toggleTheme(){
+  document.body.classList.toggle("dark");
+  _("themeBtn").textContent=document.body.classList.contains("dark")?"☀️":"🌙";
+}
+
+// ----------------- 小工具 -----------------
+function _(id){return document.getElementById(id);}
+function div(cls){const e=document.createElement("div");e.className=cls;return e;}
+function btnEl(txt){const b=document.createElement("button");b.textContent=txt;return b;}
+
+// ----------------- 初始化 -----------------
+setLang("zh");
+</script>
+</body>
+</html>
